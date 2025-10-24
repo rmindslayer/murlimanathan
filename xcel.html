@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Murli Search & Filter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 40px 20px;
+}
+
+.container { 
+    max-width: 1000px;
+    margin: auto;
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+h2 {
+    color: #2d3748;
+    font-size: 32px;
+    margin-bottom: 30px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.file-upload {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    width: 100%;
+}
+
+.file-upload input[type=file] {
+    position: absolute;
+    left: -9999px;
+}
+
+.file-upload-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.file-upload-label:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+input[type="text"], select {
+    padding: 14px 18px;
+    width: 100%;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.filter-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+#resultCount {
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding: 12px 20px;
+    background: #f7fafc;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 16px;
+}
+
+#results {
+    margin-top: 20px;
+}
+
+.murli-card {
+    border: none;
+    padding: 25px;
+    margin-bottom: 20px;
+    border-radius: 16px;
+    background: linear-gradient(145deg, #ffffff 0%, #f7fafc 100%);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.murli-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 5px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.murli-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.murli-card > div {
+    margin-bottom: 12px;
+    color: #4a5568;
+    line-height: 1.6;
+}
+
+.murli-card > div:last-child {
+    margin-bottom: 0;
+}
+
+.murli-card strong {
+    color: #2d3748;
+    font-weight: 700;
+}
+
+.subject-title {
+    font-weight: 700;
+    margin-top: 15px;
+    color: #667eea;
+    font-size: 18px;
+    line-height: 1.5;
+}
+
+.point-detail {
+    margin-top: 12px;
+    white-space: pre-wrap;
+    color: #2d3748;
+    line-height: 1.8;
+    padding: 15px;
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 10px;
+}
+
+.no-results {
+    text-align: center;
+    padding: 60px 20px;
+    color: #718096;
+    font-size: 18px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 25px;
+    }
+    
+    h2 {
+        font-size: 26px;
+    }
+    
+    .filter-group {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>🕉️ Murli Search & Filter</h2>
+  
+  <div class="controls">
+    <input type="text" id="keywordSearch" placeholder="🔍 Search by keyword...">
+    
+    <div class="filter-group">
+      <select id="subjectFilter">
+        <option value="">All Subjects</option>
+      </select>
+      <select id="typeFilter">
+        <option value="">All Murli Types</option>
+      </select>
+    </div>
+  </div>
+  
+  <div id="resultCount"></div>
+  <div id="results"></div>
+</div>
+
+
+<script src="https://cdn.botpress.cloud/webchat/v3.3/inject.js"></script>
+<script src="https://files.bpcontent.cloud/2025/10/24/19/20251024194235-QL3GSEKH.js" defer></script>
+    
+<script>
+let murliData = [];
+let allSubjects = new Set();
+let allTypes = new Set();
+/*
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            processData(results.data);
+        }
+    });
+});
+*/
+
+window.onload = () => {
+    Papa.parse('murli.csv', {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            processData(results.data);
+        }
+    });
+};
+
+
+function processData(data) {
+    murliData = [];
+    allSubjects.clear();
+    allTypes.clear();
+
+    const firstRow = data[0] || {};
+    const murliColumn = Object.keys(firstRow).find(key => key.trim().toLowerCase() === 'murli') || 'MURLI';
+    const murliDateColumn = Object.keys(firstRow).find(key => key.trim().toLowerCase() === 'murli date') || 'MURLI DATE';
+    const dateOfMurliColumn = Object.keys(firstRow).find(key => key.trim().toLowerCase() === 'date of murli') || 'DATE OF MURLI';
+    const subject1Column = Object.keys(firstRow).find(key => key.trim().toLowerCase() === 'murli  subject') || 'MURLI  SUBJECT';
+    const pointDetail1Column = Object.keys(firstRow).find(key => key.trim().toLowerCase() === 'point details') || 'Point Details';
+    const subject2Column = Object.keys(firstRow).find(key => key.trim().toLowerCase() === 'murli  subject ') || 'MURLI  SUBJECT ';
+    const pointDetail2Column = Object.keys(firstRow).find(key => key.trim().toLowerCase() === 'point detail') || 'POINT Detail';
+
+    data.forEach((row) => {
+        let date = '';
+        let dateLabel = '';
+        if (row[dateOfMurliColumn]?.trim()) {
+            date = row[dateOfMurliColumn].trim();
+            dateLabel = 'Second Date';
+        } else if (row[murliDateColumn]?.trim()) {
+            date = row[murliDateColumn].trim();
+            dateLabel = 'Original Date';
+        }
+
+        if (row[subject1Column]?.trim() || row[pointDetail1Column]?.trim()) {
+            murliData.push({
+                date: date,
+                dateLabel: dateLabel,
+                type: (row[murliColumn] || '').trim(),
+                subject: row[subject1Column]?.trim() || '',
+                pointDetail: row[pointDetail1Column]?.trim() || ''
+            });
+            if (row[subject1Column]?.trim()) {
+                allSubjects.add(row[subject1Column].trim());
+            }
+            if (row[murliColumn]?.trim()) {
+                allTypes.add(row[murliColumn].trim());
+            }
+        }
+
+        if (row[subject2Column]?.trim() || row[pointDetail2Column]?.trim()) {
+            murliData.push({
+                date: date,
+                dateLabel: dateLabel,
+                type: (row[murliColumn] || '').trim(),
+                subject: row[subject2Column]?.trim() || '',
+                pointDetail: row[pointDetail2Column]?.trim() || ''
+            });
+            if (row[subject2Column]?.trim()) {
+                allSubjects.add(row[subject2Column].trim());
+            }
+            if (row[murliColumn]?.trim()) {
+                allTypes.add(row[murliColumn].trim());
+            }
+        }
+    });
+
+    populateFilters();
+    displayResults(murliData);
+    setupEventListeners();
+}
+
+function populateFilters() {
+    const subjectSelect = document.getElementById('subjectFilter');
+    const typeSelect = document.getElementById('typeFilter');
+
+    subjectSelect.innerHTML = '<option value="">All Subjects</option>';
+    Array.from(allSubjects).sort().forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject;
+        option.textContent = subject;
+        subjectSelect.appendChild(option);
+    });
+
+    typeSelect.innerHTML = '<option value="">All Murli Types</option>';
+    Array.from(allTypes).sort().forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        typeSelect.appendChild(option);
+    });
+}
+
+function setupEventListeners() {
+    document.getElementById('keywordSearch').addEventListener('input', filterResults);
+    document.getElementById('subjectFilter').addEventListener('change', filterResults);
+    document.getElementById('typeFilter').addEventListener('change', filterResults);
+}
+
+function filterResults() {
+    const keyword = document.getElementById('keywordSearch').value.toLowerCase();
+    const selectedSubject = document.getElementById('subjectFilter').value;
+    const selectedType = document.getElementById('typeFilter').value;
+
+    const filtered = murliData.filter(item => {
+        const matchesKeyword = !keyword || 
+            (item.subject?.toLowerCase().includes(keyword) || item.pointDetail?.toLowerCase().includes(keyword));
+        const matchesSubject = !selectedSubject || item.subject === selectedSubject;
+        const matchesType = !selectedType || item.type === selectedType;
+        return matchesKeyword && matchesSubject && matchesType;
+    });
+
+    displayResults(filtered);
+}
+
+function displayResults(data) {
+    const resultsDiv = document.getElementById('results');
+    const countDiv = document.getElementById('resultCount');
+
+    if (data.length === 0) {
+        resultsDiv.innerHTML = '<div class="no-results">📭 No results found. Try adjusting your filters.</div>';
+        countDiv.textContent = '';
+        return;
+    }
+
+    countDiv.textContent = `✨ Found ${data.length} result${data.length !== 1 ? 's' : ''}`;
+
+    resultsDiv.innerHTML = data.map(item => `
+        <div class="murli-card">
+            ${item.date ? `<div>📅 <strong>${item.dateLabel}:</strong> ${item.date}</div>` : ''}
+            <div>📖 <strong>Murli:</strong> ${item.type || 'N/A'}</div>
+            ${item.subject ? `<div class="subject-title">${item.subject}</div>` : ''}
+            ${item.pointDetail ? `<div class="point-detail">${item.pointDetail}</div>` : ''}
+        </div>
+    `).join('');
+}
+</script>
+</body>
+</html>
